@@ -1,0 +1,57 @@
+// check this site https://dbdiagram.io/ it shows the schema structure used in this Code's DB.
+
+Table token_blocklist {
+  id integer [pk, increment]
+  jti varchar(36) [not null]
+  created_at datetime
+}
+
+Table admin_login {
+  id integer [pk, increment]
+  admin_name varchar(160) [not null]
+  admin_email varchar(160) [unique, not null]
+  admin_password varchar(150) [not null]
+  admin_created datetime
+}
+
+Table banks {
+  id integer [pk, increment]
+  bank_name varchar(160) [not null]
+  bank_address varchar(160) [not null]
+  bank_created datetime
+  admin_id integer [not null, ref: > admin_login.id]
+}
+
+Table user_login {
+  id integer [pk, increment]
+  user_name varchar(160) [not null]
+  user_age integer [not null]
+  user_email varchar(160) [unique, not null]
+  user_password varchar(150) [not null]
+  user_pin varchar(100) [not null]
+  user_created datetime
+}
+
+Table user_accounts {
+  id integer [pk, increment]
+  user_account_number varchar(50) [unique, not null]
+  bank_balance float
+  user_id integer [not null, ref: > user_login.id]
+  bank_id integer [not null, ref: > banks.id]
+}
+
+Table user_deposits {
+  id integer [pk, increment]
+  deposit_value float [not null]
+  transaction_id varchar(120) [unique, not null]
+  transaction_date datetime
+  user_account_id integer [not null, ref: > user_accounts.id]
+}
+
+Table user_withdrawals {
+  id integer [pk, increment]
+  withdrawal_value float [not null]
+  transaction_id varchar(120) [unique, not null]
+  transaction_date datetime
+  user_account_id integer [not null, ref: > user_accounts.id]
+}

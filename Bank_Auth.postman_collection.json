@@ -5,7 +5,7 @@
   },
   "variable": [
     { "key": "base_url", "value": "http://127.0.0.1:5002" },
-    { "key": "admin_token", "value": "" },
+    { "key": "_token", "value": "" },
     { "key": "user_token", "value": "" }
   ],
   "item": [

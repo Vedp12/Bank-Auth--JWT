@@ -15,15 +15,19 @@ from models import db
 from models import *
 from functools import wraps
 from uuid import uuid4
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(basedir, 'bank.db')}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["JWT_SECRET_KEY"] = (
-    "5Y4E3rlhAWL83q883ru5DwVUYpjglBU4FsJAMFWEqLs1e52ZJZuxrB3d64uYKbC77IttdMXv6KxdtnrMSw000cNdKkJWZCNxxaxV3WSIUcIEFFuxjeMKbKGjTwtWkF4F8stEF8QspWsyb5bCSsPZQPwPG"
-)
+import os
+
+app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
+if not app.config["JWT_SECRET_KEY"]:
+    raise RuntimeError("JWT_SECRET_KEY environment variable is not set")
 
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=20)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
@@ -32,7 +36,7 @@ jwt = JWTManager(app)
 db.init_app(app)
 
 email_list = ["@gmail.com", "@yahoo.com", "@outlook.com"]
-employee_role_ = [
+employee_roles = [
     "manager",
     "DeskWorker",
     "SubAdmin",
@@ -132,7 +136,7 @@ def admin_signup():
 
     if not admin_name or not admin_email or not admin_password:
         return jsonify({"error": "all fields are required"}), 400
-    if not any(domain in admin_email for domain in email_list):
+    if not admin_email.endswith(tuple(email_list)):
         return jsonify({"error": "Invalid email domain"}), 400
 
     if Admin_login.query.filter_by(admin_email=admin_email).first():
@@ -204,30 +208,30 @@ def employee_signup():
         or not employee_role
         or not bank_id
     ):
-        return jsonify({"error all fields are required"}), 400
-    if Bank.query.get(bank_id):
-        return jsonify({"error": "Bank id Does not exist"}), 404
-    if not any(domain in employee_email for domain in email_list):
-        return jsonify({"error": f"email format is wrong, use {email_list}"})
+        return jsonify({"error" :"all fields are required"}), 400
+    if not db.session.get(Bank, bank_id):
+        return jsonify({"error": "Bank does not exist"}), 404
+    if not employee_email.endswith(tuple(email_list)):
+        return jsonify({"error": f"email format is wrong, use {email_list}"}),400
     if (
         Admin_login.query.filter_by(admin_email=employee_email).first()
         or User_login.query.filter_by(user_email=employee_email).first()
         or Employee_login.query.filter_by(employee_email=employee_email).first()
     ):
         return jsonify({"error": "email already exist"}), 400
-    if not any(Role in employee_role for Role in employee_role_):
-        return jsonify({"error": "For now this role does not exist"})
+    if not any(Role in employee_role for Role in employee_roles):
+        return jsonify({"error": "For now this role does not exist"}),404
     hashed_password = generate_password_hash(employee_password)
     new_employee = Employee_login(
         employee_name=employee_name,
         employee_email=employee_email,
-        employee_password=employee_password,
+        employee_password=hashed_password,
         employee_role=employee_role,
         bank_id=bank_id,
     )
     try:
         db.session.add(new_employee)
-        db.commit.commit()
+        db.session.commit()
         access_token = create_access_token(
             identity=employee_email, additional_claims={"is_employee": True}
         )
@@ -255,8 +259,7 @@ def employee_login():
         return jsonify({"error": "all fields are required"}), 400
     user = Employee_login.query.filter_by(employee_email=employee_email).first()
     if not user or not check_password_hash(user.employee_password, employee_password):
-        return jsonify({"error": "email or passwords are incorrect"}), 401
-
+           return jsonify({"error": "email or passwords are incorrect"}), 401
     access_token = create_access_token(
         identity=employee_email, additional_claims={"is_employee": True}
     )
@@ -313,9 +316,9 @@ def create_user():
         return jsonify({"error": "user_age must be a number"}), 400
     if user_age < 18:
         return jsonify({"error": "your age must be at least 18"}), 400
-        if not any(domain in user_email for domain in email_list):
-            return (
-                jsonify({"error": f"email format is wrong, use only: {email_list}"}),
+    if not user_email.endswith(tuple(email_list)):
+        return (
+            jsonify({"error": f"email format is wrong, use only: {email_list}"}),
                 400,
             )
 
@@ -397,9 +400,8 @@ def create_user_account():
 
     if not bank_id or not user_account_number:
         return jsonify({"error": "Bank ID and Account Number are required"}), 400
-    if not Bank.query.get(bank_id):
-        return jsonify({"error": "Bank does not exist"}), 404
-
+    if not db.session.get(Bank, bank_id):
+        return jsonify({"error": "Bank id Does not exist"}), 404
     new_account = User_account(
         user_account_number=user_account_number,
         bank_balance=float(initial_balance),

@@ -31,14 +31,14 @@ class Bank(db.Model):
     bank_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     admin_id = db.Column(db.Integer, db.ForeignKey("admin_login.id"), nullable=False)
     user_accounts = db.relationship("User_account", lazy=True, backref="bank")
-    employee = db.relationship("Employee_login", lazy=True, backref="employee")
+    employee = db.relationship("Employee_login", lazy=True, backref="bank")
 
 
 class Employee_login(db.Model):
     __tablename__ = "employee_login"
     id = db.Column(db.Integer, primary_key=True)
     employee_name = db.Column(db.String(160), nullable=False)
-    employee_email = db.Column(db.String(160), nullable=False)
+    employee_email = db.Column(db.String(160), unique=True ,nullable=False)
     employee_password = db.Column(db.String(150), nullable=False)
     employee_role = db.Column(db.String(160))
     employee_created = db.Column(
@@ -81,13 +81,7 @@ class User_deposit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     deposit_value = db.Column(db.Float, nullable=False)
     transaction_id = db.Column(db.String(120), nullable=False, unique=True)
-
-    transaction_date = db.Column(
-        db.DateTime,
-        default=lambda: datetime.strftime(
-            datetime.now(timezone.utc), "%Y-%m-%d  %H:%M:%S"
-        ),
-    )
+    Txn_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     user_account_id = db.Column(
         db.Integer, db.ForeignKey("user_accounts.id"), nullable=False
     )
@@ -98,13 +92,7 @@ class User_withdraw(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     withdrawal_value = db.Column(db.Float, nullable=False)
     transaction_id = db.Column(db.String(120), nullable=False, unique=True)
-
-    transaction_date = db.Column(
-        db.DateTime,
-        default=lambda: datetime.strftime(
-            datetime.now(timezone.utc), "%Y-%m-%d  %H:%M:%S"
-        ),
-    )
+    Txn_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     user_account_id = db.Column(
         db.Integer, db.ForeignKey("user_accounts.id"), nullable=False
     )

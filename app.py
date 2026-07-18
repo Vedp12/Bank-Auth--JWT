@@ -101,8 +101,8 @@ def signup():
         jsonify(
             {
                 "success": "user created successfully",
-                "accesstoken": access_token,
-                "refreshtoken": refresh_token,
+                "access-token": access_token,
+                "refresh-token": refresh_token,
             }
         ),
         201,
@@ -160,7 +160,7 @@ def account():
     account_pin = data.get("account_pin")
     if not account_no or not account_pin:
         return jsonify({"error": "All fields are required"}), 400
-    if (account_pin) < 999 or (account_pin) > 10000:
+    if account_pin < 999 or account_pin > 10000:
         return jsonify({"error": "pin is size invalid"}), 400
     BankBalance = data.get("BankBalance")
     account_info = Account_Data(
@@ -175,9 +175,9 @@ def account():
         return jsonify({"error": f"This went wrong {e}"}), 400
 
 
-@app.route("/deposite", methods=["POST"])
+@app.route("/deposit", methods=["POST"])
 @jwt_required()
-def deposite():
+def deposit():
     data = request.get_json()
     if not data:
         return jsonify({"error": "data is not in json format"}), 401
@@ -196,9 +196,9 @@ def deposite():
     # Update the actual bank balance
     account.BankBalance += int(deposited)
 
-    Deposite_Value = Account_deposite(deposited=deposited, account_pin=deposited_pin)
+    Deposit_Value = Account_deposite(deposited=deposited, account_pin=deposited_pin)
     try:
-        db.session.add(Deposite_Value)
+        db.session.add(Deposit_Value)
         db.session.commit()
     except Exception as e:
         db.session.rollback()

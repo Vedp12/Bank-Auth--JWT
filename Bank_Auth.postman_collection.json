@@ -1,0 +1,158 @@
+{
+  "info": {
+    "name": "Bank Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:5002" },
+    { "key": "admin_token", "value": "" },
+    { "key": "user_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Admin Signup",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/admin_signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"admin_name\": \"Test Admin\",\n  \"admin_email\": \"admin@gmail.com\",\n  \"admin_password\": \"pass123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const data = pm.response.json();",
+              "    pm.collectionVariables.set('admin_token', data.access_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create Bank (as Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+        ],
+        "url": "{{base_url}}/bank",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bank_name\": \"IDGAF BANK\",\n  \"bank_address\": \"FF-32-106\"\n}"
+        }
+      }
+    },
+    {
+      "name": "3. User Signup",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/user_signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_name\": \"Tux\",\n  \"user_age\": 20,\n  \"user_email\": \"tux@gmail.com\",\n  \"user_password\": \"pass123\",\n  \"user_pin\": \"1234\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const data = pm.response.json();",
+              "    pm.collectionVariables.set('user_token', data.access_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Link User Account",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{user_token}}" }
+        ],
+        "url": "{{base_url}}/user_account",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_account_number\": \"ACC001\",\n  \"bank_id\": 1,\n  \"bank_balance\": 100\n}"
+        }
+      }
+    },
+    {
+      "name": "5. Deposit",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{user_token}}" }
+        ],
+        "url": "{{base_url}}/user_deposit",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deposit_value\": 50,\n  \"pin\": \"1234\",\n  \"account_id\": 1\n}"
+        }
+      }
+    },
+    {
+      "name": "6. Withdraw",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{user_token}}" }
+        ],
+        "url": "{{base_url}}/user_withdraw",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"withdrawal_value\": 30,\n  \"pin\": \"1234\",\n  \"account_id\": 1\n}"
+        }
+      }
+    },
+    {
+      "name": "7. User Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/user_login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_email\": \"tux@gmail.com\",\n  \"user_password\": \"pass123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const data = pm.response.json();",
+              "    pm.collectionVariables.set('user_token', data.access_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Logout",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{user_token}}" }
+        ],
+        "url": "{{base_url}}/logout"
+      }
+    }
+  ]
+}

@@ -11,21 +11,12 @@ from flask_jwt_extended import (
 from sqlalchemy.exc import IntegrityError
 import os
 from datetime import timedelta, datetime
-from models import (
-    db,
-    TokenBlocklist,
-    Admin_login,
-    Bank,
-    User_login,
-    User_account,
-    User_deposit,
-    User_withdraw,
-)
+from models import db
+from models import *
 from functools import wraps
 from uuid import uuid4
 
 app = Flask(__name__)
-
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(basedir, 'bank.db')}"
@@ -39,20 +30,18 @@ app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
 jwt = JWTManager(app)
 db.init_app(app)
+
 email_list = ["@gmail.com", "@yahoo.com", "@outlook.com"]
-
-
 def get_json_data():
     try:
         data = request.get_json(silent=True)
         if not data:
             return None, jsonify({"error": "Data is not in json format"}), 400
         return data, None, None
-    except Exception:
-        return jsonify({"error ": f"Invalid request {str(Exception)}"}), 401
+    except Exception as e:
+        return None, jsonify({"error": f"Invalid request: {str(e)}"}), 400
 
 
-# * Refresh
 @app.route("/refresh", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh():
@@ -65,15 +54,12 @@ def refresh():
     return jsonify({"access_token": new_access_token}), 200
 
 
-# * Logout all
-# ! It runs on every logged in request
 @jwt.token_in_blocklist_loader
 def check_if_revoked(jwt_header, jwt_payload):
     jti = jwt_payload["jti"]
     return db.session.query(TokenBlocklist.id).filter_by(jti=jti).first() is not None
 
 
-# ! logout route
 @app.route("/logout", methods=["DELETE"])
 @jwt_required()
 def logout():
@@ -118,14 +104,14 @@ def admin_signup():
 
     if Admin_login.query.filter_by(admin_email=admin_email).first():
         return jsonify({"error": "Email already exists"}), 400
+    HashedPassword = generate_password_hash(admin_password)
+    new_admin = Admin_login(
+        admin_name=admin_name,
+        admin_email=admin_email,
+        admin_password=HashedPassword,
+    )
 
     try:
-        HashedPassword = generate_password_hash(admin_password)
-        new_admin = Admin_login(
-            admin_name=admin_name,
-            admin_email=admin_email,
-            admin_password=HashedPassword,
-        )
         db.session.add(new_admin)
         db.session.commit()
         access_token = create_access_token(
@@ -187,8 +173,9 @@ def create_bank():
         db.session.add(new_bank)
         db.session.commit()
         return jsonify({"success": "Bank created successfully"}), 201
-    except Exception:
-        return jsonify({"error": Exception})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 # * User Signup
@@ -206,8 +193,19 @@ def create_user():
 
     if not all([user_name, user_age, user_email, user_password, user_pin]):
         return jsonify({"error": "All fields are required"}), 400
-    if int(user_age) < 18:
+
+    try:
+        user_age = int(user_age)
+    except (TypeError, ValueError):
+        return jsonify({"error": "user_age must be a number"}), 400
+    if user_age < 18:
         return jsonify({"error": "your age must be at least 18"}), 400
+        if not any(domain in user_email for domain in email_list):
+            return (
+            jsonify({"error": f"email format is wrong, use only: {email_list}"}),
+            400,
+            )
+
     if (
         User_login.query.filter_by(user_email=user_email).first()
         or Admin_login.query.filter_by(admin_email=user_email).first()
@@ -216,13 +214,9 @@ def create_user():
 
     hashed_pw = generate_password_hash(user_password)
     hashed_pin = generate_password_hash(str(user_pin))
-
-    if not any(domain in user_email for domain in email_list):
-        return f"email format is wrong use only: {[email_lists for email_lists in email_list]}"
-
     new_user = User_login(
         user_name=user_name,
-        user_age=int(user_age),
+        user_age=user_age,
         user_email=user_email,
         user_password=hashed_pw,
         user_pin=hashed_pin,
@@ -244,12 +238,13 @@ def create_user():
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "Username already exists"}), 400
-    except Exception:
-        return jsonify({"error": Exception})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 # * User login
-@app.route("/userlogin", methods=["POST"])
+@app.route("/user_login", methods=["POST"])
 def userlogin():
     data, error_response, status = get_json_data()
     if error_response:
@@ -302,8 +297,9 @@ def create_user_account():
         db.session.add(new_account)
         db.session.commit()
         return jsonify({"success": "Bank account linked successfully"}), 201
-    except Exception:
-        return jsonify({"error": Exception}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route("/user_deposit", methods=["POST"])
@@ -346,11 +342,12 @@ def user_deposit():
             ),
             200,
         )
-    except Exception:
-        return jsonify({"error": Exception}), 400
-
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 @app.route("/user_withdraw", methods=["POST"])
+@jwt_required()
 def user_withdraw():
     data, error_response, status = get_json_data()
     if error_response:
@@ -391,11 +388,12 @@ def user_withdraw():
             ),
             200,
         )
-    except Exception:
-        return jsonify({"error": Exception}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(port=5001)
+    app.run(port=5002)

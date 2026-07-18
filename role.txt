@@ -1,0 +1,19 @@
+# *Allows access to Users, Employees, and Admins alike
+def user_emp_admin_required():
+    def wrapper(fn):
+        @wraps(fn)
+        @jwt_required()
+        def decorator(*args, **kwargs):
+            claims = get_jwt()
+            
+            is_admin = claims.get("is_admin", False)
+            is_employee = claims.get("is_employee", False)
+            is_user = claims.get("is_user", False)
+
+            # Validates if ANY of the three roles are flagged as True
+            if is_admin is True or is_employee is True or is_user is True:
+                return fn(*args, **kwargs)
+                
+            return jsonify({"msg": "Access denied. Valid account role required."}), 403
+        return decorator
+    return wrapper

@@ -32,6 +32,15 @@ jwt = JWTManager(app)
 db.init_app(app)
 
 email_list = ["@gmail.com", "@yahoo.com", "@outlook.com"]
+employee_role_ = [
+    "manager",
+    "DeskWorker",
+    "SubAdmin",
+    "Accountant",
+    "Waltchecker",
+    "Maintainer",
+]
+
 def get_json_data():
     try:
         data = request.get_json(silent=True)
@@ -42,24 +51,31 @@ def get_json_data():
         return None, jsonify({"error": f"Invalid request: {str(e)}"}), 400
 
 
+# * Refresh
 @app.route("/refresh", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh():
     current_user = get_jwt_identity()
     claims = get_jwt()
-    additional_claims = {"is_admin": claims.get("is_admin", False)}
+    additional_claims = {
+        "is_admin": claims.get("is_admin", False),
+        "is_employee": claims.get("is_employee", False),
+        "is_user": claims.get("is_user", False),
+    }
     new_access_token = create_access_token(
         identity=current_user, additional_claims=additional_claims
     )
     return jsonify({"access_token": new_access_token}), 200
 
 
+# * BlockList
 @jwt.token_in_blocklist_loader
 def check_if_revoked(jwt_header, jwt_payload):
     jti = jwt_payload["jti"]
     return db.session.query(TokenBlocklist.id).filter_by(jti=jti).first() is not None
 
 
+# * Logout
 @app.route("/logout", methods=["DELETE"])
 @jwt_required()
 def logout():
@@ -69,14 +85,15 @@ def logout():
     return jsonify({"msg": "logout successful"}), 200
 
 
-# *Admin required decorator
+# * Admin required decorator
 def admin_required():
     def wrapper(fn):
         @wraps(fn)
         @jwt_required()
         def decorator(*args, **kwargs):
             claims = get_jwt()
-            if claims.get("is_admin") is True:
+            is_admin = claims.get("is_admin", False)
+            if is_admin is True:
                 return fn(*args, **kwargs)
             return jsonify({"msg": "Administration access required."}), 403
 
@@ -85,14 +102,30 @@ def admin_required():
     return wrapper
 
 
-# *Admin
-# ? Signup
+# *Employee required decorator
+def emp_required():
+    def wrapper(fn):
+        @wraps(fn)
+        @jwt_required()
+        def decorator(*args, **kwargs):
+            claims = get_jwt()
+            # Check BOTH conditions using an OR statement
+            is_employee = claims.get("is_employee", False)
+            if is_employee is True:
+                return fn(*args, **kwargs)
+            return jsonify({"msg": "Employee access required."}), 403
+
+        return decorator
+
+    return wrapper
+
+
+# *Admin - Signup
 @app.route("/admin_signup", methods=["POST"])
 def admin_signup():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
-
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
     admin_name = data.get("admin_name")
     admin_email = data.get("admin_email")
     admin_password = data.get("admin_password")
@@ -120,7 +153,6 @@ def admin_signup():
         refresh_token = create_refresh_token(
             identity=admin_email, additional_claims={"is_admin": True}
         )
-
         return (
             jsonify({"access_token": access_token, "refresh_token": refresh_token}),
             201,
@@ -130,11 +162,12 @@ def admin_signup():
         return jsonify({"error": str(e)}), 400
 
 
+# *Admin - Login
 @app.route("/admin_login", methods=["POST"])
 def admin_login():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
 
     admin_email = data.get("admin_email")
     admin_password = data.get("admin_password")
@@ -152,19 +185,98 @@ def admin_login():
     return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
 
 
+# * Employee - signup
+@app.route("/employee_signup", methods=["POST"])
+@admin_required()
+def employee_signup():
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
+    employee_name = data.get("employee_name")
+    employee_email = data.get("employee_email")
+    employee_password = data.get("employee_password")
+    employee_role = data.get("employee_role")
+    bank_id = data.get("bank_id")
+    if (
+        not employee_name
+        or not employee_email
+        or not employee_password
+        or not employee_role
+        or not bank_id
+    ):
+        return jsonify({"error all fields are required"}), 400
+    if Bank.query.get(bank_id):
+        return jsonify({"error": "Bank id Does not exist"}), 404
+    if not any(domain in employee_email for domain in email_list):
+        return jsonify({"error": f"email format is wrong, use {email_list}"})
+    if (
+        Admin_login.query.filter_by(admin_email=employee_email).first()
+        or User_login.query.filter_by(user_email=employee_email).first()
+        or Employee_login.query.filter_by(employee_email=employee_email).first()
+    ):
+        return jsonify({"error": "email already exist"}), 400
+    if not any(Role in employee_role for Role in employee_role_):
+        return jsonify({"error": "For now this role does not exist"})
+    hashed_password = generate_password_hash(employee_password)
+    new_employee = Employee_login(
+        employee_name=employee_name,
+        employee_email=employee_email,
+        employee_password=employee_password,
+        employee_role=employee_role,
+        bank_id=bank_id,
+    )
+    try:
+        db.session.add(new_employee)
+        db.commit.commit()
+        access_token = create_access_token(
+            identity=employee_email, additional_claims={"is_employee": True}
+        )
+        refresh_token = create_refresh_token(
+            identity=employee_email, additional_claims={"is_employee": True}
+        )
+        return (
+            jsonify({"access_token": access_token, "refresh_token": refresh_token}),
+            201,
+        )
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"{str(e)}"}), 400
+
+
+# * Employee - login
+@app.route("/employee_login", methods=["POST"])
+def employee_login():
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
+    employee_email = data.get("employee_email")
+    employee_password = data.get("employee_password")
+    if not employee_email or not employee_password:
+        return jsonify({"error": "all fields are required"}), 400
+    user = Employee_login.query.filter_by(employee_email=employee_email).first()
+    if not user or not check_password_hash(user.employee_password, employee_password):
+        return jsonify({"error": "email or passwords are incorrect"}), 401
+
+    access_token = create_access_token(
+        identity=employee_email, additional_claims={"is_employee": True}
+    )
+    refresh_token = create_refresh_token(
+        identity=employee_email, additional_claims={"is_employee": True}
+    )
+    return jsonify({"access_token": access_token, "refresh_token": refresh_token})
+
+
+# * Bank
 @app.route("/bank", methods=["POST"])
 @admin_required()
 def create_bank():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
-
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
     bank_name = data.get("bank_name")
     bank_address = data.get("bank_address")
-
     current_admin_email = get_jwt_identity()
     admin = Admin_login.query.filter_by(admin_email=current_admin_email).first()
-
     if not bank_name or not bank_address:
         return jsonify({"error": "all fields are required"}), 400
 
@@ -178,12 +290,13 @@ def create_bank():
         return jsonify({"error": str(e)}), 400
 
 
-# * User Signup
+# * User - Signup
 @app.route("/user_signup", methods=["POST"])
+@emp_required()
 def create_user():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
 
     user_name = data.get("user_name")
     user_age = data.get("user_age")
@@ -202,8 +315,8 @@ def create_user():
         return jsonify({"error": "your age must be at least 18"}), 400
         if not any(domain in user_email for domain in email_list):
             return (
-            jsonify({"error": f"email format is wrong, use only: {email_list}"}),
-            400,
+                jsonify({"error": f"email format is wrong, use only: {email_list}"}),
+                400,
             )
 
     if (
@@ -243,12 +356,12 @@ def create_user():
         return jsonify({"error": str(e)}), 400
 
 
-# * User login
+# * User - login
 @app.route("/user_login", methods=["POST"])
 def userlogin():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
 
     user_email = data.get("user_email")
     user_password = data.get("user_password")
@@ -268,13 +381,13 @@ def userlogin():
     return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
 
 
-# * User Account
+# * User - Account
 @app.route("/user_account", methods=["POST"])
-@jwt_required()
+@emp_required()
 def create_user_account():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
     user_account_number = data.get("user_account_number")
     bank_id = data.get("bank_id")
     initial_balance = data.get("bank_balance", 0.0)
@@ -302,12 +415,13 @@ def create_user_account():
         return jsonify({"error": str(e)}), 400
 
 
+# * User Deposite
 @app.route("/user_deposit", methods=["POST"])
 @jwt_required()
 def user_deposit():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
 
     deposit_value = data.get("deposit_value")
     pin = data.get("pin")
@@ -346,12 +460,14 @@ def user_deposit():
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
 
+
+# * User - Withdraw
 @app.route("/user_withdraw", methods=["POST"])
 @jwt_required()
 def user_withdraw():
-    data, error_response, status = get_json_data()
-    if error_response:
-        return error_response, status
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
 
     withdrawal_value = data.get("withdrawal_value")
     pin = data.get("pin")
@@ -393,6 +509,7 @@ def user_withdraw():
         return jsonify({"error": str(e)}), 400
 
 
+# * Runner
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

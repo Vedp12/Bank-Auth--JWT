@@ -24,13 +24,27 @@ class Admin_login(db.Model):
 
 
 class Bank(db.Model):
-    __tablename__ = "banks"
+    __tablename__ = "bank"
     id = db.Column(db.Integer, primary_key=True)
     bank_name = db.Column(db.String(160), nullable=False)
     bank_address = db.Column(db.String(160), nullable=False)
     bank_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     admin_id = db.Column(db.Integer, db.ForeignKey("admin_login.id"), nullable=False)
     user_accounts = db.relationship("User_account", lazy=True, backref="bank")
+    employee = db.relationship("Employee_login", lazy=True, backref="employee")
+
+
+class Employee_login(db.Model):
+    __tablename__ = "employee_login"
+    id = db.Column(db.Integer, primary_key=True)
+    employee_name = db.Column(db.String(160), nullable=False)
+    employee_email = db.Column(db.String(160), nullable=False)
+    employee_password = db.Column(db.String(150), nullable=False)
+    employee_role = db.Column(db.String(160))
+    employee_created = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    bank_id = db.Column(db.Integer, db.ForeignKey("bank.id"), nullable=False)
 
 
 class User_login(db.Model):
@@ -50,6 +64,7 @@ class User_account(db.Model):
     __tablename__ = "user_accounts"
     id = db.Column(db.Integer, primary_key=True)
     user_account_number = db.Column(db.String(50), unique=True, nullable=False)
+    user_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     bank_balance = db.Column(db.Float, default=0.0)
 
     user_deposits = db.relationship("User_deposit", lazy=True, backref="useraccount")
@@ -58,7 +73,7 @@ class User_account(db.Model):
     )
 
     user_id = db.Column(db.Integer, db.ForeignKey("user_login.id"), nullable=False)
-    bank_id = db.Column(db.Integer, db.ForeignKey("banks.id"), nullable=False)
+    bank_id = db.Column(db.Integer, db.ForeignKey("bank.id"), nullable=False)
 
 
 class User_deposit(db.Model):
@@ -66,8 +81,12 @@ class User_deposit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     deposit_value = db.Column(db.Float, nullable=False)
     transaction_id = db.Column(db.String(120), nullable=False, unique=True)
+
     transaction_date = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc)
+        db.DateTime,
+        default=lambda: datetime.strftime(
+            datetime.now(timezone.utc), "%Y-%m-%d  %H:%M:%S"
+        ),
     )
     user_account_id = db.Column(
         db.Integer, db.ForeignKey("user_accounts.id"), nullable=False
@@ -79,8 +98,12 @@ class User_withdraw(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     withdrawal_value = db.Column(db.Float, nullable=False)
     transaction_id = db.Column(db.String(120), nullable=False, unique=True)
+
     transaction_date = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc)
+        db.DateTime,
+        default=lambda: datetime.strftime(
+            datetime.now(timezone.utc), "%Y-%m-%d  %H:%M:%S"
+        ),
     )
     user_account_id = db.Column(
         db.Integer, db.ForeignKey("user_accounts.id"), nullable=False

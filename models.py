@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
-
+#from sqlalchemy.exc.hybrid import hybrid_property
 db = SQLAlchemy()
 
 
@@ -21,6 +21,10 @@ class Admin_login(db.Model):
     admin_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     banks = db.relationship("Bank", lazy=True, backref="admin")
+
+#@hybrid_property
+#def total_bank(self):
+#    return sum(bank.balance for bank in self.banks)
 
 
 class Bank(db.Model):

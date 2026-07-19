@@ -25,7 +25,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(basedir, 'bank
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 import os
 
-app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
+app.config["JWT_SECRET_KEY"] = "shsdfj;hgkj;kdfhgpuy0567895tyryesuitg858576y78ugduisg786357567usdhgf48735634756sdfuyguosdg"
 if not app.config["JWT_SECRET_KEY"]:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set")
 
@@ -123,7 +123,7 @@ def emp_required():
 
     return wrapper
 
-
+# -------------------------------------------------------------------
 # *Admin - Signup
 @app.route("/admin_signup", methods=["POST"])
 def admin_signup():
@@ -509,6 +509,40 @@ def user_withdraw():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+
+
+# * GET 
+@app.route("/admin/<int:id>" , methods=["GET"])
+def admin_get(id):
+    Admin = Admin_login.query.get(id)
+    if Admin:
+        return jsonify(
+                {
+                "name": Admin.admin_name,
+                "Email":Admin.admin_email,
+                "Starting Date": Admin.admin_created,
+                "Total banks":len(Admin.banks), 
+                "Bank" :[
+                {
+                    "NO": bank.id,
+                    "Name": bank.bank_name,
+                    "Created": bank.bank_created,
+                    "Total Employees": len(bank.employees),
+                    #"Total users": sum(bank.user_accounts),
+                    "Employees": [
+                            {
+                                "No": emp.id,
+                                "emp": emp.employee_name
+
+                            } for emp in bank.employee
+                        ]
+                    } 
+                for bank in Admin.banks
+                ],
+            }
+            ),200
+    
+
 
 
 # * Runner

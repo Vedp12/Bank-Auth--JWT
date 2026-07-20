@@ -16,6 +16,7 @@ from models import *
 from functools import wraps
 from uuid import uuid4
 from dotenv import load_dotenv
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -34,4 +35,3 @@ app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
 jwt = JWTManager(app)
 db.init_app(app)
-

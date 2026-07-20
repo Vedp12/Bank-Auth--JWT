@@ -1,7 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
-#from sqlalchemy.exc.hybrid import hybrid_property
+
+# from sqlalchemy.exc.hybrid import hybrid_property
 db = SQLAlchemy()
 
 
@@ -22,8 +23,9 @@ class Admin_login(db.Model):
 
     banks = db.relationship("Bank", lazy=True, backref="admin")
 
-#@hybrid_property
-#def total_bank(self):
+
+# @hybrid_property
+# def total_bank(self):
 #    return sum(bank.balance for bank in self.banks)
 
 
@@ -42,7 +44,7 @@ class Employee_login(db.Model):
     __tablename__ = "employee_login"
     id = db.Column(db.Integer, primary_key=True)
     employee_name = db.Column(db.String(160), nullable=False)
-    employee_email = db.Column(db.String(160), unique=True ,nullable=False)
+    employee_email = db.Column(db.String(160), unique=True, nullable=False)
     employee_password = db.Column(db.String(150), nullable=False)
     employee_role = db.Column(db.String(160))
     employee_created = db.Column(
@@ -85,7 +87,9 @@ class User_deposit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     deposit_value = db.Column(db.Float, nullable=False)
     transaction_id = db.Column(db.String(120), nullable=False, unique=True)
-    Txn_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    Txn_date = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     user_account_id = db.Column(
         db.Integer, db.ForeignKey("user_accounts.id"), nullable=False
     )
@@ -96,7 +100,9 @@ class User_withdraw(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     withdrawal_value = db.Column(db.Float, nullable=False)
     transaction_id = db.Column(db.String(120), nullable=False, unique=True)
-    Txn_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    Txn_date = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     user_account_id = db.Column(
         db.Integer, db.ForeignKey("user_accounts.id"), nullable=False
     )

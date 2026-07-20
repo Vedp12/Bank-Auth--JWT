@@ -1,0 +1,600 @@
+{
+	"info": {
+		"_postman_id": "21b9d5a7-065c-404b-a972-a855dce0561e",
+		"name": "Bank Auth",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "41549378"
+	},
+	"item": [
+		{
+			"name": "All Post request",
+			"item": [
+				{
+					"name": "1. Admin Signup",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('admin_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"admin_name\": \"Test Admin\",\n  \"admin_email\": \"admin012@gmail.com\",\n  \"admin_password\": \"pass123\" \n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin_signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin_signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.1 admin login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"admin_email\": \"admin012@gmail.com\",\n  \"admin_password\": \"pass123\" \n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin_login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin_login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Create Bank (as Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('user_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc4NDQ4ODc5OCwianRpIjoiOThmNTRmOTItZWZjNi00ODRlLThmMDctMWMwNGJkM2MwMGRjIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFkbWluMDEyQGdtYWlsLmNvbSIsIm5iZiI6MTc4NDQ4ODc5OCwiY3NyZiI6IjZkZjE0OGYyLWU5YjMtNDMzOC05YzJhLWE3YWE1ZjZkMmI2YiIsImV4cCI6MTc4NDQ4OTk5OCwiaXNfYWRtaW4iOnRydWV9.fBdNWc53gp9s7mw-MwAdEepAzFlRlhvwx4NL0Jm3RDk",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bank_name\": \"IDGAF-1 BANK\",\n  \"bank_address\": \"FF-32-106\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/bank",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bank"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. User Signup",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('user_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc4NDQ4MDU0NiwianRpIjoiYzI4ZWQ1Y2UtMDQyYS00ODg2LWIxZWYtNjEzZTNmMjZkYjYxIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFzZGZzMmRmZGFzczEyQGdtYWlsLmNvbSIsIm5iZiI6MTc4NDQ4MDU0NiwiY3NyZiI6IjQyNTc4OTgzLWZjYjUtNGFjZS05MTkzLTdkMzQ5ZjA4ZjNmOCIsImV4cCI6MTc4NDQ4MTc0NiwiaXNfZW1wbG95ZWUiOnRydWV9.vvERcn8u6598xCsvrBYvQMzmRolE3psqegtljO-9c2c",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_name\": \"Tux1\",\n  \"user_age\": 21,\n  \"user_email\": \"tu2a21x@gmail.com\",\n  \"user_password\": \"pdaass123\",\n  \"user_pin\": \"1234\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user_signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user_signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. user account link",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('admin_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_account_number\": \"ACC001\",\n  \"bank_id\": 1,\n  \"bank_balance\": 10000000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user_account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user_account"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5. Deposit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"deposit_value\": 50,\n  \"pin\": \"1234\",\n  \"account_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user_deposit",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user_deposit"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6. Withdraw",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"withdrawal_value\": 30,\n  \"pin\": \"1234\",\n  \"account_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user_withdraw",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user_withdraw"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "7. User Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('user_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_email\": \"tux@gmail.com\",\n  \"user_password\": \"pass123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/user_login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"user_login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "9 Employee signup",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('user_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc4NDQ4ODc5OCwianRpIjoiOThmNTRmOTItZWZjNi00ODRlLThmMDctMWMwNGJkM2MwMGRjIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFkbWluMDEyQGdtYWlsLmNvbSIsIm5iZiI6MTc4NDQ4ODc5OCwiY3NyZiI6IjZkZjE0OGYyLWU5YjMtNDMzOC05YzJhLWE3YWE1ZjZkMmI2YiIsImV4cCI6MTc4NDQ4OTk5OCwiaXNfYWRtaW4iOnRydWV9.fBdNWc53gp9s7mw-MwAdEepAzFlRlhvwx4NL0Jm3RDk",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"employee_name\" : \"gareeb\",\n\"employee_email\" : \"asdfs22dasd22dfdass12@gmail.com\",\n\"employee_password\" : \"ass22ewdsadfgadf3289476fgdfjhg\",\n\"employee_role\" : \"DeskWorker\",\n\"bank_id\":1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/employee_signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"employee_signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "10 Employee login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('user_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"employee_email\" : \"asdfs2dfdass12@gmail.com\",\n\"employee_password\" : \"assdsadfgadf3289476fgdfjhg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/employee_login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"employee_login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "All GET request",
+			"item": [
+				{
+					"name": "GET-Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const data = pm.response.json();",
+									"    pm.collectionVariables.set('user_token', data.access_token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:5002"
+		},
+		{
+			"key": "admin_token",
+			"value": ""
+		},
+		{
+			"key": "user_token",
+			"value": ""
+		}
+	]
+}

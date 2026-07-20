@@ -16,6 +16,7 @@ from models import *
 from functools import wraps
 from uuid import uuid4
 from dotenv import load_dotenv
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -25,7 +26,9 @@ app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(basedir, 'bank
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 import os
 
-app.config["JWT_SECRET_KEY"] = "shsdfj;hgkj;kdfhgpuy0567895tyryesuitg858576y78ugduisg786357567usdhgf48735634756sdfuyguosdg"
+app.config["JWT_SECRET_KEY"] = (
+    "shsdfj;hgkj;kdfhgpuy0567895tyryesuitg858576y78ugduisg786357567usdhgf48735634756sdfuyguosdg"
+)
 if not app.config["JWT_SECRET_KEY"]:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set")
 
@@ -44,6 +47,7 @@ employee_roles = [
     "Waltchecker",
     "Maintainer",
 ]
+
 
 def get_json_data():
     try:
@@ -122,6 +126,7 @@ def emp_required():
         return decorator
 
     return wrapper
+
 
 # -------------------------------------------------------------------
 # *Admin - Signup
@@ -208,11 +213,11 @@ def employee_signup():
         or not employee_role
         or not bank_id
     ):
-        return jsonify({"error" :"all fields are required"}), 400
+        return jsonify({"error": "all fields are required"}), 400
     if not db.session.get(Bank, bank_id):
         return jsonify({"error": "Bank does not exist"}), 404
     if not employee_email.endswith(tuple(email_list)):
-        return jsonify({"error": f"email format is wrong, use {email_list}"}),400
+        return jsonify({"error": f"email format is wrong, use {email_list}"}), 400
     if (
         Admin_login.query.filter_by(admin_email=employee_email).first()
         or User_login.query.filter_by(user_email=employee_email).first()
@@ -220,7 +225,7 @@ def employee_signup():
     ):
         return jsonify({"error": "email already exist"}), 400
     if not any(Role in employee_role for Role in employee_roles):
-        return jsonify({"error": "For now this role does not exist"}),404
+        return jsonify({"error": "For now this role does not exist"}), 404
     hashed_password = generate_password_hash(employee_password)
     new_employee = Employee_login(
         employee_name=employee_name,
@@ -259,7 +264,7 @@ def employee_login():
         return jsonify({"error": "all fields are required"}), 400
     user = Employee_login.query.filter_by(employee_email=employee_email).first()
     if not user or not check_password_hash(user.employee_password, employee_password):
-           return jsonify({"error": "email or passwords are incorrect"}), 401
+        return jsonify({"error": "email or passwords are incorrect"}), 401
     access_token = create_access_token(
         identity=employee_email, additional_claims={"is_employee": True}
     )
@@ -319,8 +324,8 @@ def create_user():
     if not user_email.endswith(tuple(email_list)):
         return (
             jsonify({"error": f"email format is wrong, use only: {email_list}"}),
-                400,
-            )
+            400,
+        )
 
     if (
         User_login.query.filter_by(user_email=user_email).first()
@@ -511,38 +516,134 @@ def user_withdraw():
         return jsonify({"error": str(e)}), 400
 
 
-# * GET 
-@app.route("/admin/<int:id>" , methods=["GET"])
+# * GET --  BY ID
+# ! Admin
+@app.route("/admin/<int:id>", methods=["GET"])
+@admin_required()
 def admin_get(id):
     Admin = Admin_login.query.get(id)
     if Admin:
-        return jsonify(
+        return (
+            jsonify(
                 {
-                "name": Admin.admin_name,
-                "Email":Admin.admin_email,
-                "Starting Date": Admin.admin_created,
-                "Total banks":len(Admin.banks), 
-                "Bank" :[
-                {
-                    "NO": bank.id,
-                    "Name": bank.bank_name,
-                    "Created": bank.bank_created,
-                    "Total Employees": len(bank.employees),
-                    #"Total users": sum(bank.user_accounts),
-                    "Employees": [
-                            {
-                                "No": emp.id,
-                                "emp": emp.employee_name
+                    "name": Admin.admin_name,
+                    "Email": Admin.admin_email,
+                    "Starting Date": Admin.admin_created,
+                    "Total banks": len(Admin.banks),
+                    "Bank": [
+                        {
+                            "NO": bank.id,
+                            "Name": bank.bank_name,
+                            "Created": bank.bank_created,
+                            "Total Employees": len(bank.employee),
+                            # "Total users": sum(bank.user_accounts),
+                            "Employees": [
+                                {"No": emp.id, "emp": emp.employee_name}
+                                for emp in bank.employee
+                            ],
+                        }
+                        for bank in Admin.banks
+                    ],
+                }
+            ),
+            200,
+        )
+    else:
+        return jsonify({"error": "Admin ID not found"}), 404
 
-                            } for emp in bank.employee
-                        ]
-                    } 
-                for bank in Admin.banks
+
+# ! Bank
+@app.route("/bank/<int:id>", methods=["GET"])
+@admin_required()
+def get_bank(id):
+    bank = Bank.query.get(id)
+    if bank:
+        return (
+            jsonify(
+                {
+                    "Bank name": bank.bank_name,
+                    "Bank Address": bank.bank_address,
+                    "Created": bank.bank_created,
+                    "Total Employees": len(bank.employee),
+                    "Employees": [
+                        {
+                            "NO": emps.id,
+                            "Name": emps.employee_name,
+                            "Role": emps.employee_role,
+                        }
+                        for emps in bank.employee
+                    ],
+                }
+            ),
+            200,
+        )
+    else:
+        return jsonify({"error": "Bank not found"}), 404
+
+
+# ! Employees
+@app.route("/employee/<int:id>", methods=["GET"])
+@admin_required()
+def get_employee(id):
+    emps = Employee_login.query.get(id)
+    if emps:
+        return (
+            jsonify(
+                {
+                    "No": emps.id,
+                    "Name": emps.employee_name,
+                    "Email": emps.employee_email,
+                    "Role": emps.employee_role,
+                    "Joined": emps.joined,
+                }
+            ),
+            200,
+        )
+    else:
+        return jsonify({"error": "Employee not found"}), 404
+
+
+# ! Users
+@app.route("/user/<int:id>", methods=["GET"])
+def get_user(id):
+    users = User_login.query.get(id)
+    if users:
+        return jsonify(
+            {
+                "No": users.id,
+                "Name": users.user_name,
+                "Email": users.user_email,
+                "Joined": users.joined,
+                "Accounts": [
+                    {
+                        "No": account.id,
+                        "Account Number": account.account_number,
+                        "Bank Balance": account.bank_balance,
+                        "All the Transactions": [
+                            {
+                                "Withdraw": [
+                                    {
+                                        "Transation-id": withdraw.transaction_id,
+                                        "Amount": withdraw.withdrawal_value,
+                                        "Date": withdraw.Txn_date,
+                                    }
+                                    for withdraw in account.user_withdrawals
+                                ],
+                                "Deposite": [
+                                    {
+                                        "Transation-id": deposit.transaction_id,
+                                        "Amount": deposit.deposit_value,
+                                        "Date": deposit.Txn_date,
+                                    }
+                                    for deposit in account.user_deposits
+                                ],
+                            }
+                        ],
+                    }
+                    for account in User_account.query.all()
                 ],
             }
-            ),200
-    
-
+        )
 
 
 # * Runner

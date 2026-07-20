@@ -1,2 +1,6 @@
-# Bank-Auth--JWT
-![png](/home/tux_106/Downloads/Untitled.png)
+# Bank-Auth
+DB Schema
+![Database Schema Animation](ReadMe_Resources/DB_Schema.gif)
+
+
+Author: **Ved Patel**

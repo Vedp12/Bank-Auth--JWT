@@ -104,9 +104,7 @@ def admin_required():
             if is_admin is True:
                 return fn(*args, **kwargs)
             return jsonify({"msg": "Administration access required."}), 403
-
         return decorator
-
     return wrapper
 
 
@@ -122,9 +120,7 @@ def emp_required():
             if is_employee is True:
                 return fn(*args, **kwargs)
             return jsonify({"msg": "Employee access required."}), 403
-
         return decorator
-
     return wrapper
 
 

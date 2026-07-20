@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from pygments.styles import default
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
 
@@ -20,7 +21,9 @@ class Admin_login(db.Model):
     admin_email = db.Column(db.String(160), unique=True, nullable=False, index=True)
     admin_password = db.Column(db.String(150), nullable=False)
     admin_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
+    admin_updated = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.now(timezone.utc)
+    )
     banks = db.relationship("Bank", lazy=True, backref="admin")
 
 
@@ -35,7 +38,11 @@ class Bank(db.Model):
     bank_name = db.Column(db.String(160), nullable=False)
     bank_address = db.Column(db.String(160), nullable=False)
     bank_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    bank_updated = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.now(timezone.utc)
+    )
     admin_id = db.Column(db.Integer, db.ForeignKey("admin_login.id"), nullable=False)
+
     user_accounts = db.relationship("User_account", lazy=True, backref="bank")
     employee = db.relationship("Employee_login", lazy=True, backref="bank")
 
@@ -50,6 +57,9 @@ class Employee_login(db.Model):
     employee_created = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )
+    employee_updated = db.Column(
+        db.DateTime, default=datetime.utc(), onupdate=datetime(timezon.utc)
+    )
     bank_id = db.Column(db.Integer, db.ForeignKey("bank.id"), nullable=False)
 
 
@@ -61,7 +71,9 @@ class User_login(db.Model):
     user_email = db.Column(db.String(160), unique=True, nullable=False)
     user_password = db.Column(db.String(150), nullable=False)
     user_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
+    user_updated = db.Column(
+        db.DateTime, default=datetime.utc(), onupdate=datetime.now(timezone.utc)
+    )
     user_pin = db.Column(db.String(100), nullable=False)
     user_accounts = db.relationship("User_account", lazy=True, backref="user")
 
@@ -77,7 +89,6 @@ class User_account(db.Model):
     user_withdrawals = db.relationship(
         "User_withdraw", lazy=True, backref="useraccount"
     )
-
     user_id = db.Column(db.Integer, db.ForeignKey("user_login.id"), nullable=False)
     bank_id = db.Column(db.Integer, db.ForeignKey("bank.id"), nullable=False)
 

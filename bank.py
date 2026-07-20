@@ -11,7 +11,7 @@ from flask_jwt_extended import (
 from sqlalchemy.exc import IntegrityError
 import os
 from datetime import timedelta, datetime
-from models import db
+from models import db, Bank
 from models import *
 from functools import wraps
 from uuid import uuid4
@@ -644,6 +644,125 @@ def get_user(id):
                 ],
             }
         )
+    else:
+        return jsonify({"error": "User not found"}), 404
+
+
+# * PUT
+
+
+# ! Admin
+@app.route("/admin/<int:id>", methods=["PUT"])
+@admin_required()
+def put_admin(id):
+    Admin = Admin.query.get(id)
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
+    if Admin:
+        Admin_provided_password = data.get("password")
+        if not Admin_provided_password:
+            return jsonify("Password not provided"), 404
+        if check_password_hash(admin.admin_password, Admin_provided_password):
+
+            Admin.admin_name = data.get("name", Admin.admin_name)
+            Admin.admin_email = data.get("email", Admin.admin_email)
+            db.commit()
+            return (
+                jsonify(
+                    {
+                        "Success": f"{Admin.admin_name}'s data has been updated ",
+                        "Update At": Admin.admin_updated.isformated(),
+                    }
+                ),
+                204,
+            )
+        else:
+            return jsonify({"error": "Admin password is incorrect"}), 401
+    else:
+        return jsonify({"error": "Admin not found"}), 404
+
+
+# ! Bank
+@app.route("/bank/<int:id>", methods=["PUT"])
+@admin_required()
+def put_bank(id):
+    bank = Bank.query.get(id)
+    if not bank:
+        return jsonify({"error": "Bank id not found"}), 404
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
+
+    Admin_provided_password = data.get("password")
+    admin = Admin_login.query.get("password")
+    if not admin:
+        return jsonify({"error": "Admin not password "}), 401
+    if check_password_hash(admin.admin_password, Admin_provided_password):
+        bank.bank_name = data.get("name", bank.bank_name)
+        bank.bank_address = data.get("bank_address", bank.bank_address)
+        bank.bank_updated = datetime.now(timezone.utc)
+        db.commit()
+        return (
+            jsonify(
+                {
+                    "success": f"{bank.bank_name}'s data has been updated ",
+                    "Update At": bank.bank_updated.isoformat(),
+                }
+            ),
+            204,
+        )
+    else:
+        return jsonify({"error": "Admin password is incorrect"}), 401
+
+
+@app.route("/employee/<int:id>", methods=["PUT"])
+@admin_required()
+def put_employee(id):
+    Employee = Employee_login.query.get(id)
+    data, format_response, status = get_json_data()
+    if Employee:
+        emp_provide_password = Admin_login.query.get("password")
+        if not emp_provide_password:
+            return jsonify({"error": "Employee's password is not provided"}), 401
+        if check_password_hash(Employee.employee_password, emp_provide_password):
+            Employee.employee_name = data.get("name", Employee.employee_name)
+            Employee.employee_email = data.get("email", Employee.employee_email)
+            Employee.employee_role = data.get("role", Employee.employee_role)
+            Employee.employee_updated = datetime.now(timezone.utc)
+            return json(
+                {
+                    "success": f"{Employee.employee_name}'s data has been updated ",
+                    "Update AT": Employee.employee_updated.isoformat(),
+                }
+            )
+        else:
+            return jsonify({"error": "Employee password is incorrect"}), 401
+
+    else:
+        return jsonify({"error": "Employee not found"}), 404
+
+
+@app.route("/bank/<int:id>", methods=["PUT"])
+@emp_required()
+def put_user(id):
+    User = user_login.get(id)
+    data, format_response, status = get_json_data()
+    if format_response:
+        return format_response, status
+    if User:
+        User.user_name = data.get("name", User.user_name)
+        User.user_email = data.get("email", User.user_email)
+        User.user_updated = datetime.now(timezone.utc)
+        db.commit()
+        return jsonify(
+            {
+                "sucess": f"{User.user_name}'s data has been updated ",
+                "Updated At": user.user_updated.isformated(),
+            }
+        )
+    else:
+        return jsonify({"error": "User not found "}), 404
 
 
 # * Runner

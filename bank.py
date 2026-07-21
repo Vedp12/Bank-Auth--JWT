@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from samba.domain.models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import (
     JWTManager,
@@ -11,7 +12,7 @@ from flask_jwt_extended import (
 from sqlalchemy.exc import IntegrityError
 import os
 from datetime import timedelta, datetime
-from models import db, Bank
+from models import db, Bank, User_account
 from models import *
 from functools import wraps
 from uuid import uuid4
@@ -739,7 +740,7 @@ def put_employee(id):
         return jsonify({"error": "Employee not found"}), 404
 
 
-@app.route("/bank/<int:id>", methods=["PUT"])
+@app.route("/<int:id>", methods=["PUT"])
 @emp_required()
 def put_user(id):
     User = user_login.get(id)
@@ -761,6 +762,92 @@ def put_user(id):
         return jsonify({"error": "User not found "}), 404
 
 
+# * Delete by id
+# ! Admin
+@app.route("/admin/<int:id>",methods=["DELETE"])
+@admin_required()
+def delete_admin(id):
+    Admin = Admin_login.query.get(id)
+    data,formated,status = get_json_data()
+    if formated:
+        return formated, status
+    if Admin:
+        admin_id ,admin_name= Admin, Admin.admin_name
+
+        db.session.delete(Admin)
+        db.session.commit()
+        db.session.close()
+        return jsonify({"delete":f"{admin_name} with id {admin_id} has been deleted successfully from database"}), 200
+    else:
+        return jsonify({"error":"Admin not found"}), 404
+
+# ! Bank
+@app.route("/bank/<int:id>",methods=["DELETE"])
+@admin_required()
+def delete_bank(id):
+    bank = Bank.query.get(id)
+    data,formated,status = get_json_data()
+    if formated:
+        return formated,status
+    if bank:
+        bank_id ,bank_name = bank, Bank.bank_name
+        db.session.delete(bank)
+        db.session.commit()
+        db.commit()
+        return jsonify({"delete":f"{bank_name} with id {bank_id} has been deleted successfully from database"}), 200
+    else:
+        return ({"error":"Bank not found "}), 404
+
+# ! Employee
+@app.route("/employee/<int:id>",methods=["DELETE"])
+@admin_required()
+def delete_employee(id):
+    employee = Employee_login.query.get(id)
+    data,formated,status = get_json_data()
+    if formated:
+        return formated,status
+    if employee:
+        employee_id,employee_name = employee, employee.employee_name
+        db.session.delete(employee)
+        db.session.commit()
+        db.session.close()
+        return jsonify({"delete":f"{employee_name} with id {employee_id} has been deleted successfully from database"}), 200
+    else:
+        return jsonify({"error": "Employee not found"}), 404
+# ! User
+@app.route("/user/<int:id>",methods=["DELETE"])
+@emp_required()
+def delete_user(id):
+    user            = User_login.query.get(id)
+    # user_account    = User_account.query.get(id)
+    # user_deposit    = User_deposit.query.get(id)
+    # user_withdraw   = User_withdraw.query.get(id)
+    data,formated,status = get_json_data()
+    if formated:
+        return formated,status
+    if user:
+        user_id ,user_name = user, user.user_name
+        db.session.delete(user)
+        db.session.commit()
+        db.session.close()
+        return jsonify({"delete":f"{user_name} with id {user_id} has been deleted successfully from database"}), 200
+    else:
+        return jsonify({"error","User not found "}), 404
+
+@app.route("/admin-acc/<int:id>",methods=["DELETE"])
+def delete_user_acc():
+    user_account = User_account.query.get(id)
+    data,formated,status = get_json_data()
+    if formated:
+        return formated,status
+    if user_account:
+        user_account_id,user_acc_no = user_account, user_account.user_account_number
+        db.session.delete(user_account)
+        db.session.commit()
+        db.session.close()
+        return ({"error":f"{user_acc_no} number with id {user_account_id} has been deleted successfully from database"}), 200
+    else:
+        return jsonify({"error":"User not found "}), 404
 # * Runner
 if __name__ == "__main__":
     with app.app_context():

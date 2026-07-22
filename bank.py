@@ -66,7 +66,7 @@ def get_json_data():
             return None, jsonify({"error": "Data is not in json format"}), 400
         return data, None, None
     except Exception as e:
-        return None, jsonify({"error": f"Invalid request: {str(e)}"}), 400
+        return None, jsonify({"error": f"Invalid request: {"Some error occured"}"}), 400
 
 
 # * Refresh
@@ -166,19 +166,14 @@ def admin_signup():
     try:
         db.session.add(new_admin)
         db.session.commit()
-        access_token = create_access_token(
-            identity=admin_email, additional_claims={"is_admin": True}
-        )
-        refresh_token = create_refresh_token(
-            identity=admin_email, additional_claims={"is_admin": True}
-        )
+
         return (
             jsonify({"access_token": access_token, "refresh_token": refresh_token}),
             201,
         )
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "Some error occured"}), 400
 
 
 # *Admin - Login
@@ -228,13 +223,13 @@ def employee_signup():
         return jsonify({"error": "Bank does not exist"}), 404
     if not employee_email.endswith(tuple(email_list)):
         return jsonify({"error": f"email format is wrong, use {email_list}"}), 400
-    if (
+    if  (
         AdminLogin.query.filter_by(admin_email=employee_email).first()
         or UserLogin.query.filter_by(user_email=employee_email).first()
         or EmployeeLogin.query.filter_by(employee_email=employee_email).first()
     ):
         return jsonify({"error": "email already exist"}), 400
-    if not any(Role in employee_role for Role in employee_roles):
+    if employee_role not in employee_roles :
         return jsonify({"error": "For now this role does not exist"}), 404
     hashed_password = generate_password_hash(employee_password)
     new_employee = EmployeeLogin(
@@ -259,7 +254,7 @@ def employee_signup():
         )
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"{str(e)}"}), 400
+        return jsonify({"error": f"{"Some error occured"}"}), 400
 
 
 # * Employee - login
@@ -305,7 +300,7 @@ def create_bank():
         return jsonify({"success": "Bank created successfully"}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "Some error occured"}), 400
 
 
 # * User - Signup
@@ -371,7 +366,7 @@ def create_user():
         return jsonify({"error": "Username already exists"}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "Some error occured"}), 400
 
 
 # * User - login
@@ -429,7 +424,7 @@ def create_user_account():
         return jsonify({"success": "Bank account linked successfully"}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "Some error occured"}), 400
 
 
 # * User Deposite
@@ -475,7 +470,7 @@ def user_deposit():
         )
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "Some error occured"}), 400
 
 
 # * User - Withdraw
@@ -523,7 +518,7 @@ def user_withdraw():
         )
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": "Some error occured"}), 400
 
 
 # * GET --  BY ID

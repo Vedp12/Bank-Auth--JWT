@@ -26,7 +26,8 @@ from functools import wraps
 from uuid import uuid4
 from dotenv import load_dotenv
 from environs import Env
-
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 env = Env()
 env.read_env()
 load_dotenv()
@@ -45,9 +46,16 @@ if not app.config["JWT_SECRET_KEY"]:
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=20)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
+# *Rate limiter code
+limiter = Limiter(
+    application,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "30 per hour"]
+)
 jwt = JWTManager(app)
 db.init_app(app)
 
+# *All the listed emails that are allow
 email_list = ["@gmail.com", "@yahoo.com", "@outlook.com"]
 employee_roles = [
     "manager",
@@ -58,7 +66,7 @@ employee_roles = [
     "Maintainer",
 ]
 
-
+# *Get data in json format only
 def get_json_data():
     try:
         data = request.get_json(silent=True)
@@ -66,10 +74,10 @@ def get_json_data():
             return None, jsonify({"error": "Data is not in json format"}), 400
         return data, None, None
     except Exception as e:
-        return None, jsonify({"error": f"Invalid request: {"Some error occured"}"}), 400
+        return None, jsonify({"error": f"Invalid request: {e}"}), 400
 
 
-# * Refresh
+# *Refresh
 @app.route("/refresh", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh():
@@ -86,14 +94,14 @@ def refresh():
     return jsonify({"access_token": new_access_token}), 200
 
 
-# * BlockList
+# *BlockList
 @jwt.token_in_blocklist_loader
 def check_if_revoked(jwt_header, jwt_payload):
     jti = jwt_payload["jti"]
     return db.session.query(TokenBlocklist.id).filter_by(jti=jti).first() is not None
 
 
-# * Logout
+# *Logout
 @app.route("/logout", methods=["DELETE"])
 @jwt_required()
 def logout():
@@ -102,8 +110,13 @@ def logout():
     db.session.commit()
     return jsonify({"msg": "logout successful"}), 200
 
+# *404 - page not found
+@app.errorhandler(404)
+def page_not_found(e):
+    return jsonify({"msg": "404 - Page not found"}), 404
 
-# * Admin required decorator
+
+# *Admin required decorator
 def admin_required():
     def wrapper(fn):
         @wraps(fn)
@@ -141,6 +154,7 @@ def emp_required():
 # -------------------------------------------------------------------
 # *Admin - Signup
 @app.route("/admin_signup", methods=["POST"])
+@limiter.limit("10 per minute")
 def admin_signup():
     data, format_response, status = get_json_data()
     if format_response:
@@ -199,7 +213,7 @@ def admin_login():
     return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
 
 
-# * Employee - signup
+# *Employee - signup
 @app.route("/employee_signup", methods=["POST"])
 @admin_required()
 def employee_signup():
@@ -257,7 +271,7 @@ def employee_signup():
         return jsonify({"error": f"{"Some error occured"}"}), 400
 
 
-# * Employee - login
+# *Employee - login
 @app.route("/employee_login", methods=["POST"])
 def employee_login():
     data, format_response, status = get_json_data()
@@ -279,7 +293,7 @@ def employee_login():
     return jsonify({"access_token": access_token, "refresh_token": refresh_token})
 
 
-# * Bank
+# *Bank
 @app.route("/bank", methods=["POST"])
 @admin_required()
 def create_bank():
@@ -303,7 +317,7 @@ def create_bank():
         return jsonify({"error": "Some error occured"}), 400
 
 
-# * User - Signup
+# *User - Signup
 @app.route("/user_signup", methods=["POST"])
 @emp_required()
 def create_user():
@@ -369,7 +383,7 @@ def create_user():
         return jsonify({"error": "Some error occured"}), 400
 
 
-# * User - login
+# *User - login
 @app.route("/user_login", methods=["POST"])
 def userlogin():
     data, format_response, status = get_json_data()
@@ -394,7 +408,7 @@ def userlogin():
     return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
 
 
-# * User - Account
+# *User - Account
 @app.route("/user_account", methods=["POST"])
 @emp_required()
 def create_user_account():
@@ -427,7 +441,7 @@ def create_user_account():
         return jsonify({"error": "Some error occured"}), 400
 
 
-# * User Deposite
+# *User Deposite
 @app.route("/user_deposit", methods=["POST"])
 @jwt_required()
 def user_deposit():
@@ -473,7 +487,7 @@ def user_deposit():
         return jsonify({"error": "Some error occured"}), 400
 
 
-# * User - Withdraw
+# *User - Withdraw
 @app.route("/user_withdraw", methods=["POST"])
 @jwt_required()
 def user_withdraw():
@@ -521,10 +535,11 @@ def user_withdraw():
         return jsonify({"error": "Some error occured"}), 400
 
 
-# * GET --  BY ID
+# *GET --  BY ID
 # ! Admin
 @app.route("/admin/<int:id>", methods=["GET"])
 @admin_required()
+@limiter.limit("10 per minute")
 def admin_get(id):
     Admin = AdminLogin.query.get(id)
     if Admin:
@@ -559,6 +574,7 @@ def admin_get(id):
 
 # ! Bank
 @app.route("/bank/<int:id>", methods=["GET"])
+@limiter.limit("12 per minute")
 @admin_required()
 def get_bank(id):
     bank = Bank.query.get(id)
@@ -610,6 +626,7 @@ def get_employee(id):
 
 # ! Users
 @app.route("/user/<int:id>", methods=["GET"])
+@limiter.exempt
 def get_user(id):
     users = UserLogin.query.get(id)
     if users:
@@ -653,12 +670,13 @@ def get_user(id):
         return jsonify({"error": "User not found"}), 404
 
 
-# * PUT
+# *PUT
 
 
 # ! Admin
 @app.route("/admin/<int:id>", methods=["PUT"])
 @admin_required()
+@limiter.limit("1/20days")
 def put_admin(id):
     Admin = AdminLogin.query.get(id)
     data, format_response, status = get_json_data()
@@ -692,6 +710,7 @@ def put_admin(id):
 # ! Bank
 @app.route("/bank/<int:id>", methods=["PUT"])
 @admin_required()
+@limiter.limit("1/30days")
 def put_bank(id):
     bank = Bank.query.get(id)
     if not bank:
@@ -724,6 +743,7 @@ def put_bank(id):
 
 @app.route("/employee/<int:id>", methods=["PUT"])
 @admin_required()
+@limiter.limit("1/100days")
 def put_employee(id):
     Employee = EmployeeLogin.query.get(id)
     data, format_response, status = get_json_data()
@@ -752,6 +772,7 @@ def put_employee(id):
 
 @app.route("/<int:id>", methods=["PUT"])
 @emp_required()
+@limiter.limit("1/14days")
 def put_user(id):
     User = UserLogin.get(id)
     data, format_response, status = get_json_data()
@@ -772,7 +793,7 @@ def put_user(id):
         return jsonify({"error": "User not found "}), 404
 
 
-# * Delete by id
+# *Delete by id
 # ! Admin
 @app.route("/admin/<int:id>", methods=["DELETE"])
 @admin_required()
@@ -897,7 +918,7 @@ def delete_user_acc(id):
         return jsonify({"error": "User not found "}), 404
 
 
-# * Runner
+# *Runner
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

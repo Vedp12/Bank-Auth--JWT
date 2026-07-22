@@ -1,5 +1,4 @@
 from flask import Flask, jsonify, request
-from samba.domain.models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import (
     JWTManager,
@@ -9,15 +8,27 @@ from flask_jwt_extended import (
     get_jwt,
     get_jwt_identity,
 )
-from sqlalchemy.exc import IntegrityError
 import os
 from datetime import timedelta, datetime
-from models import db, Bank, User_account
-from models import *
+from models import db, Bank, UserAccount
+from models import (
+    TokenBlocklist,
+    AdminLogin,
+    Bank,
+    EmployeeLogin,
+    UserLogin,
+    UserAccount,
+    UserDeposit,
+    UserWithdraw,
+    db,
+)
 from functools import wraps
 from uuid import uuid4
 from dotenv import load_dotenv
+from environs import Env
 
+env = Env()
+env.read_env()
 load_dotenv()
 
 app = Flask(__name__)
@@ -25,11 +36,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(basedir, 'bank.db')}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-import os
 
-app.config["JWT_SECRET_KEY"] = (
-    "shsdfj;hgkj;kdfhgpuy0567895tyryesuitg858576y78ugduisg786357567usdhgf48735634756sdfuyguosdg"
-)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 if not app.config["JWT_SECRET_KEY"]:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set")
 
@@ -105,7 +114,9 @@ def admin_required():
             if is_admin is True:
                 return fn(*args, **kwargs)
             return jsonify({"msg": "Administration access required."}), 403
+
         return decorator
+
     return wrapper
 
 
@@ -121,7 +132,9 @@ def emp_required():
             if is_employee is True:
                 return fn(*args, **kwargs)
             return jsonify({"msg": "Employee access required."}), 403
+
         return decorator
+
     return wrapper
 
 
@@ -141,10 +154,10 @@ def admin_signup():
     if not admin_email.endswith(tuple(email_list)):
         return jsonify({"error": "Invalid email domain"}), 400
 
-    if Admin_login.query.filter_by(admin_email=admin_email).first():
+    if AdminLogin.query.filter_by(admin_email=admin_email).first():
         return jsonify({"error": "Email already exists"}), 400
     HashedPassword = generate_password_hash(admin_password)
-    new_admin = Admin_login(
+    new_admin = AdminLogin(
         admin_name=admin_name,
         admin_email=admin_email,
         admin_password=HashedPassword,
@@ -178,7 +191,7 @@ def admin_login():
     admin_email = data.get("admin_email")
     admin_password = data.get("admin_password")
 
-    user = Admin_login.query.filter_by(admin_email=admin_email).first()
+    user = AdminLogin.query.filter_by(admin_email=admin_email).first()
     if not user or not check_password_hash(user.admin_password, admin_password):
         return jsonify({"error": "email or password is incorrect"}), 401
 
@@ -216,15 +229,15 @@ def employee_signup():
     if not employee_email.endswith(tuple(email_list)):
         return jsonify({"error": f"email format is wrong, use {email_list}"}), 400
     if (
-        Admin_login.query.filter_by(admin_email=employee_email).first()
-        or User_login.query.filter_by(user_email=employee_email).first()
-        or Employee_login.query.filter_by(employee_email=employee_email).first()
+        AdminLogin.query.filter_by(admin_email=employee_email).first()
+        or UserLogin.query.filter_by(user_email=employee_email).first()
+        or EmployeeLogin.query.filter_by(employee_email=employee_email).first()
     ):
         return jsonify({"error": "email already exist"}), 400
     if not any(Role in employee_role for Role in employee_roles):
         return jsonify({"error": "For now this role does not exist"}), 404
     hashed_password = generate_password_hash(employee_password)
-    new_employee = Employee_login(
+    new_employee = EmployeeLogin(
         employee_name=employee_name,
         employee_email=employee_email,
         employee_password=hashed_password,
@@ -259,7 +272,7 @@ def employee_login():
     employee_password = data.get("employee_password")
     if not employee_email or not employee_password:
         return jsonify({"error": "all fields are required"}), 400
-    user = Employee_login.query.filter_by(employee_email=employee_email).first()
+    user = EmployeeLogin.query.filter_by(employee_email=employee_email).first()
     if not user or not check_password_hash(user.employee_password, employee_password):
         return jsonify({"error": "email or passwords are incorrect"}), 401
     access_token = create_access_token(
@@ -281,7 +294,7 @@ def create_bank():
     bank_name = data.get("bank_name")
     bank_address = data.get("bank_address")
     current_admin_email = get_jwt_identity()
-    admin = Admin_login.query.filter_by(admin_email=current_admin_email).first()
+    admin = AdminLogin.query.filter_by(admin_email=current_admin_email).first()
     if not bank_name or not bank_address:
         return jsonify({"error": "all fields are required"}), 400
 
@@ -325,14 +338,14 @@ def create_user():
         )
 
     if (
-        User_login.query.filter_by(user_email=user_email).first()
-        or Admin_login.query.filter_by(admin_email=user_email).first()
+        UserLogin.query.filter_by(user_email=user_email).first()
+        or AdminLogin.query.filter_by(admin_email=user_email).first()
     ):
         return jsonify({"error": "Email already exists"}), 400
 
     hashed_pw = generate_password_hash(user_password)
     hashed_pin = generate_password_hash(str(user_pin))
-    new_user = User_login(
+    new_user = UserLogin(
         user_name=user_name,
         user_age=user_age,
         user_email=user_email,
@@ -373,7 +386,7 @@ def userlogin():
     if not user_email or not user_password:
         return jsonify({"error": "all field are required"}), 400
 
-    user = User_login.query.filter_by(user_email=user_email).first()
+    user = UserLogin.query.filter_by(user_email=user_email).first()
     if not user or not check_password_hash(user.user_password, user_password):
         return jsonify({"error": "email or password is incorrect"}), 401
 
@@ -398,13 +411,13 @@ def create_user_account():
     initial_balance = data.get("bank_balance", 0.0)
 
     current_user_email = get_jwt_identity()
-    user = User_login.query.filter_by(user_email=current_user_email).first()
+    user = UserLogin.query.filter_by(user_email=current_user_email).first()
 
     if not bank_id or not user_account_number:
         return jsonify({"error": "Bank ID and Account Number are required"}), 400
     if not db.session.get(Bank, bank_id):
         return jsonify({"error": "Bank id Does not exist"}), 404
-    new_account = User_account(
+    new_account = UserAccount(
         user_account_number=user_account_number,
         bank_balance=float(initial_balance),
         user_id=user.id,
@@ -433,9 +446,9 @@ def user_deposit():
     if not deposit_value or not pin or not account_id:
         return jsonify({"error": "All fields are required"}), 400
     current_user_email = get_jwt_identity()
-    user = User_login.query.filter_by(user_email=current_user_email).first()
+    user = UserLogin.query.filter_by(user_email=current_user_email).first()
 
-    account = User_account.query.filter_by(id=account_id, user_id=user.id).first()
+    account = UserAccount.query.filter_by(id=account_id, user_id=user.id).first()
     if not account:
         return jsonify({"error": "Account not found or access denied"}), 404
     if not check_password_hash(user.user_pin, str(pin)):
@@ -444,7 +457,7 @@ def user_deposit():
     account.bank_balance += float(deposit_value)
     txn_id = f"DEP-{datetime.today().strftime('%Y%m%d%H%M')}-{uuid4().hex[:6]}"
     try:
-        deposit_record = User_deposit(
+        deposit_record = UserDeposit(
             deposit_value=float(deposit_value),
             transaction_id=txn_id,
             user_account_id=account.id,
@@ -479,9 +492,9 @@ def user_withdraw():
     if not withdrawal_value or not pin or not account_id:
         return jsonify({"error": "All fields are required"}), 400
     current_user_email = get_jwt_identity()
-    user = User_login.query.filter_by(user_email=current_user_email).first()
+    user = UserLogin.query.filter_by(user_email=current_user_email).first()
 
-    account = User_account.query.filter_by(id=account_id, user_id=user.id).first()
+    account = UserAccount.query.filter_by(id=account_id, user_id=user.id).first()
     if not account:
         return jsonify({"error": "Account not found or access denied"}), 404
     if not check_password_hash(user.user_pin, str(pin)):
@@ -492,7 +505,7 @@ def user_withdraw():
     account.bank_balance -= float(withdrawal_value)
     try:
         txn_id = f"WTH-{datetime.today().strftime('%Y%m%d%H%M')}-{uuid4().hex[:6]}"
-        withdraw_record = User_withdraw(
+        withdraw_record = UserWithdraw(
             withdrawal_value=float(withdrawal_value),
             transaction_id=txn_id,
             user_account_id=account.id,
@@ -518,7 +531,7 @@ def user_withdraw():
 @app.route("/admin/<int:id>", methods=["GET"])
 @admin_required()
 def admin_get(id):
-    Admin = Admin_login.query.get(id)
+    Admin = AdminLogin.query.get(id)
     if Admin:
         return (
             jsonify(
@@ -582,7 +595,7 @@ def get_bank(id):
 @app.route("/employee/<int:id>", methods=["GET"])
 @admin_required()
 def get_employee(id):
-    emps = Employee_login.query.get(id)
+    emps = EmployeeLogin.query.get(id)
     if emps:
         return (
             jsonify(
@@ -591,7 +604,7 @@ def get_employee(id):
                     "Name": emps.employee_name,
                     "Email": emps.employee_email,
                     "Role": emps.employee_role,
-                    "Joined": emps.joined,
+                    "Joined": emps.employee_created,
                 }
             ),
             200,
@@ -603,18 +616,18 @@ def get_employee(id):
 # ! Users
 @app.route("/user/<int:id>", methods=["GET"])
 def get_user(id):
-    users = User_login.query.get(id)
+    users = UserLogin.query.get(id)
     if users:
         return jsonify(
             {
                 "No": users.id,
                 "Name": users.user_name,
                 "Email": users.user_email,
-                "Joined": users.joined,
+                "Joined": users.user_created,
                 "Accounts": [
                     {
                         "No": account.id,
-                        "Account Number": account.account_number,
+                        "Account Number": account.user_account_number,
                         "Bank Balance": account.bank_balance,
                         "All the Transactions": [
                             {
@@ -624,7 +637,7 @@ def get_user(id):
                                         "Amount": withdraw.withdrawal_value,
                                         "Date": withdraw.Txn_date,
                                     }
-                                    for withdraw in account.user_withdrawals
+                                    for withdraw in account.UserWithdraw
                                 ],
                                 "Deposite": [
                                     {
@@ -632,12 +645,12 @@ def get_user(id):
                                         "Amount": deposit.deposit_value,
                                         "Date": deposit.Txn_date,
                                     }
-                                    for deposit in account.user_deposits
+                                    for deposit in account.UserDeposit
                                 ],
                             }
                         ],
                     }
-                    for account in User_account.query.all()
+                    for account in users.UserAccount
                 ],
             }
         )
@@ -652,24 +665,25 @@ def get_user(id):
 @app.route("/admin/<int:id>", methods=["PUT"])
 @admin_required()
 def put_admin(id):
-    Admin = Admin.query.get(id)
+    Admin = AdminLogin.query.get(id)
     data, format_response, status = get_json_data()
     if format_response:
         return format_response, status
     if Admin:
-        Admin_provided_password = data.get("password")
+        Admin_provided_password = data.get("admin_password")
         if not Admin_provided_password:
             return jsonify("Password not provided"), 404
         if check_password_hash(admin.admin_password, Admin_provided_password):
 
             Admin.admin_name = data.get("name", Admin.admin_name)
             Admin.admin_email = data.get("email", Admin.admin_email)
-            db.commit()
+
+            db.session.commit()
             return (
                 jsonify(
                     {
                         "Success": f"{Admin.admin_name}'s data has been updated ",
-                        "Update At": Admin.admin_updated.isformated(),
+                        "Update At": Admin.admin_updated(isformated),
                     }
                 ),
                 204,
@@ -691,15 +705,15 @@ def put_bank(id):
     if format_response:
         return format_response, status
 
-    Admin_provided_password = data.get("password")
-    admin = Admin_login.query.get("password")
+    Admin_provided_password = data.get("admin_password")
+    admin = AdminLogin.query.get("password")
     if not admin:
         return jsonify({"error": "Admin not password "}), 401
     if check_password_hash(admin.admin_password, Admin_provided_password):
         bank.bank_name = data.get("name", bank.bank_name)
         bank.bank_address = data.get("bank_address", bank.bank_address)
         bank.bank_updated = datetime.now(timezone.utc)
-        db.commit()
+        db.session.commit()
         return (
             jsonify(
                 {
@@ -716,10 +730,10 @@ def put_bank(id):
 @app.route("/employee/<int:id>", methods=["PUT"])
 @admin_required()
 def put_employee(id):
-    Employee = Employee_login.query.get(id)
+    Employee = EmployeeLogin.query.get(id)
     data, format_response, status = get_json_data()
     if Employee:
-        emp_provide_password = Admin_login.query.get("password")
+        emp_provide_password = AdminLogin.query.get("admin_password")
         if not emp_provide_password:
             return jsonify({"error": "Employee's password is not provided"}), 401
         if check_password_hash(Employee.employee_password, emp_provide_password):
@@ -727,7 +741,8 @@ def put_employee(id):
             Employee.employee_email = data.get("email", Employee.employee_email)
             Employee.employee_role = data.get("role", Employee.employee_role)
             Employee.employee_updated = datetime.now(timezone.utc)
-            return json(
+            db.session.commit()
+            return jsonify(
                 {
                     "success": f"{Employee.employee_name}'s data has been updated ",
                     "Update AT": Employee.employee_updated.isoformat(),
@@ -743,7 +758,7 @@ def put_employee(id):
 @app.route("/<int:id>", methods=["PUT"])
 @emp_required()
 def put_user(id):
-    User = user_login.get(id)
+    User = UserLogin.get(id)
     data, format_response, status = get_json_data()
     if format_response:
         return format_response, status
@@ -751,7 +766,7 @@ def put_user(id):
         User.user_name = data.get("name", User.user_name)
         User.user_email = data.get("email", User.user_email)
         User.user_updated = datetime.now(timezone.utc)
-        db.commit()
+        db.session.commit()
         return jsonify(
             {
                 "sucess": f"{User.user_name}'s data has been updated ",
@@ -764,90 +779,129 @@ def put_user(id):
 
 # * Delete by id
 # ! Admin
-@app.route("/admin/<int:id>",methods=["DELETE"])
+@app.route("/admin/<int:id>", methods=["DELETE"])
 @admin_required()
 def delete_admin(id):
-    Admin = Admin_login.query.get(id)
-    data,formated,status = get_json_data()
+    Admin = AdminLogin.query.get(id)
+    data, formated, status = get_json_data()
     if formated:
         return formated, status
     if Admin:
-        admin_id ,admin_name= Admin, Admin.admin_name
+        admin_id, admin_name = Admin, Admin.admin_name
 
         db.session.delete(Admin)
         db.session.commit()
         db.session.close()
-        return jsonify({"delete":f"{admin_name} with id {admin_id} has been deleted successfully from database"}), 200
+        return (
+            jsonify(
+                {
+                    "delete": f"{admin_name} with id {admin_id} has been deleted successfully from database"
+                }
+            ),
+            200,
+        )
     else:
-        return jsonify({"error":"Admin not found"}), 404
+        return jsonify({"error": "Admin not found"}), 404
+
 
 # ! Bank
-@app.route("/bank/<int:id>",methods=["DELETE"])
+@app.route("/bank/<int:id>", methods=["DELETE"])
 @admin_required()
 def delete_bank(id):
     bank = Bank.query.get(id)
-    data,formated,status = get_json_data()
+    data, formated, status = get_json_data()
     if formated:
-        return formated,status
+        return formated, status
     if bank:
-        bank_id ,bank_name = bank, Bank.bank_name
+        bank_id, bank_name = bank, Bank.bank_name
         db.session.delete(bank)
         db.session.commit()
         db.commit()
-        return jsonify({"delete":f"{bank_name} with id {bank_id} has been deleted successfully from database"}), 200
+        return (
+            jsonify(
+                {
+                    "delete": f"{bank_name} with id {bank_id} has been deleted successfully from database"
+                }
+            ),
+            200,
+        )
     else:
-        return ({"error":"Bank not found "}), 404
+        return ({"error": "Bank not found "}), 404
+
 
 # ! Employee
-@app.route("/employee/<int:id>",methods=["DELETE"])
+@app.route("/employee/<int:id>", methods=["DELETE"])
 @admin_required()
 def delete_employee(id):
-    employee = Employee_login.query.get(id)
-    data,formated,status = get_json_data()
+    employee = EmployeeLogin.query.get(id)
+    data, formated, status = get_json_data()
     if formated:
-        return formated,status
+        return formated, status
     if employee:
-        employee_id,employee_name = employee, employee.employee_name
+        employee_id, employee_name = employee, employee.employee_name
         db.session.delete(employee)
         db.session.commit()
         db.session.close()
-        return jsonify({"delete":f"{employee_name} with id {employee_id} has been deleted successfully from database"}), 200
+        return (
+            jsonify(
+                {
+                    "delete": f"{employee_name} with id {employee_id} has been deleted successfully from database"
+                }
+            ),
+            200,
+        )
     else:
         return jsonify({"error": "Employee not found"}), 404
+
+
 # ! User
-@app.route("/user/<int:id>",methods=["DELETE"])
+@app.route("/user/<int:id>", methods=["DELETE"])
 @emp_required()
 def delete_user(id):
-    user            = User_login.query.get(id)
-    # user_account    = User_account.query.get(id)
-    # user_deposit    = User_deposit.query.get(id)
-    # user_withdraw   = User_withdraw.query.get(id)
-    data,formated,status = get_json_data()
+    user = UserLogin.query.get(id)
+    # user_account    = UserAccount.query.get(id)
+    # user_deposit    = UserDeposit.query.get(id)
+    # user_withdraw   = UserWithdraw.query.get(id)
+    data, formated, status = get_json_data()
     if formated:
-        return formated,status
+        return formated, status
     if user:
-        user_id ,user_name = user, user.user_name
+        user_id, user_name = user, user.user_name
         db.session.delete(user)
         db.session.commit()
         db.session.close()
-        return jsonify({"delete":f"{user_name} with id {user_id} has been deleted successfully from database"}), 200
+        return (
+            jsonify(
+                {
+                    "delete": f"{user_name} with id {user_id} has been deleted successfully from database"
+                }
+            ),
+            200,
+        )
     else:
-        return jsonify({"error","User not found "}), 404
+        return jsonify({"error", "User not found "}), 404
 
-@app.route("/admin-acc/<int:id>",methods=["DELETE"])
-def delete_user_acc():
-    user_account = User_account.query.get(id)
-    data,formated,status = get_json_data()
+
+@app.route("/admin-acc/<int:id>", methods=["DELETE"])
+def delete_user_acc(id):
+    user_account = UserAccount.query.get(id)
+    data, formated, status = get_json_data()
     if formated:
-        return formated,status
+        return formated, status
     if user_account:
-        user_account_id,user_acc_no = user_account, user_account.user_account_number
+        user_account_id, user_acc_no = user_account, user_account.user_account_number
         db.session.delete(user_account)
         db.session.commit()
         db.session.close()
-        return ({"error":f"{user_acc_no} number with id {user_account_id} has been deleted successfully from database"}), 200
+        return (
+            {
+                "error": f"{user_acc_no} number with id {user_account_id} has been deleted successfully from database"
+            }
+        ), 200
     else:
-        return jsonify({"error":"User not found "}), 404
+        return jsonify({"error": "User not found "}), 404
+
+
 # * Runner
 if __name__ == "__main__":
     with app.app_context():

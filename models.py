@@ -1,5 +1,4 @@
 from flask_sqlalchemy import SQLAlchemy
-from pygments.styles import default
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
 
@@ -11,20 +10,26 @@ class TokenBlocklist(db.Model):
     __tablename__ = "token_blocklist"
     id = db.Column(db.Integer, primary_key=True)
     jti = db.Column(db.String(36), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(
+        db.DateTime, default=datetime.now(timezone.utc).fromtimestamp
+    )
 
 
-class Admin_login(db.Model):
+class AdminLogin(db.Model):
     __tablename__ = "admin_login"
     id = db.Column(db.Integer, primary_key=True)
     admin_name = db.Column(db.String(160), nullable=False)
     admin_email = db.Column(db.String(160), unique=True, nullable=False, index=True)
-    admin_password = db.Column(db.String(150), nullable=False)
-    admin_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    admin_updated = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.now(timezone.utc)
+    admin_password = db.Column(db.String(200), nullable=False)
+    admin_created = db.Column(
+        db.DateTime, default=datetime.now(timezone.utc).fromtimestamp
     )
-    banks = db.relationship("Bank", lazy=True, backref="admin")
+    admin_updated = db.Column(
+        db.DateTime, default=datetime.now, onupdate=datetime.now(timezone.utc)
+    )
+    banks = db.relationship(
+        "Bank", lazy=True, backref="admin", cascade="all, delete-orphan"
+    )
 
 
 # @hybrid_property
@@ -37,63 +42,77 @@ class Bank(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     bank_name = db.Column(db.String(160), nullable=False)
     bank_address = db.Column(db.String(160), nullable=False)
-    bank_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    bank_created = db.Column(
+        db.DateTime, default=datetime.now(timezone.utc).fromtimestamp
+    )
     bank_updated = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.now(timezone.utc)
     )
     admin_id = db.Column(db.Integer, db.ForeignKey("admin_login.id"), nullable=False)
 
-    user_accounts = db.relationship("User_account", lazy=True, backref="bank")
-    employee = db.relationship("Employee_login", lazy=True, backref="bank")
+    user_accounts = db.relationship(
+        "UserAccount", lazy=True, backref="bank", cascade="all, delete-orphan"
+    )
+    employee = db.relationship(
+        "EmployeeLogin", lazy=True, backref="bank", cascade="all, delete-orphan"
+    )
 
 
-class Employee_login(db.Model):
+class EmployeeLogin(db.Model):
     __tablename__ = "employee_login"
     id = db.Column(db.Integer, primary_key=True)
     employee_name = db.Column(db.String(160), nullable=False)
     employee_email = db.Column(db.String(160), unique=True, nullable=False)
-    employee_password = db.Column(db.String(150), nullable=False)
+    employee_password = db.Column(db.String(200), nullable=False)
     employee_role = db.Column(db.String(160))
     employee_created = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )
     employee_updated = db.Column(
-        db.DateTime, default=datetime.utc(), onupdate=datetime(timezon.utc)
+        db.DateTime, default=datetime.now(), onupdate=datetime(timezon.utc)
     )
     bank_id = db.Column(db.Integer, db.ForeignKey("bank.id"), nullable=False)
 
 
-class User_login(db.Model):
+class UserLogin(db.Model):
     __tablename__ = "user_login"
     id = db.Column(db.Integer, primary_key=True)
     user_name = db.Column(db.String(160), nullable=False)
     user_age = db.Column(db.Integer, nullable=False)
     user_email = db.Column(db.String(160), unique=True, nullable=False)
-    user_password = db.Column(db.String(150), nullable=False)
-    user_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    user_password = db.Column(db.String(200), nullable=False)
+    user_created = db.Column(
+        db.DateTime, default=datetime.now(timezone.utc).fromtimestamp
+    )
     user_updated = db.Column(
-        db.DateTime, default=datetime.utc(), onupdate=datetime.now(timezone.utc)
+        db.DateTime, default=datetime.now(), onupdate=datetime.now(timezone.utc)
     )
     user_pin = db.Column(db.String(100), nullable=False)
-    user_accounts = db.relationship("User_account", lazy=True, backref="user")
+    user_accounts = db.relationship(
+        "UserAccount", lazy=True, backref="user", cascade="all, delete-orphan"
+    )
 
 
-class User_account(db.Model):
+class UserAccount(db.Model):
     __tablename__ = "user_accounts"
     id = db.Column(db.Integer, primary_key=True)
     user_account_number = db.Column(db.String(50), unique=True, nullable=False)
-    user_created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    user_created = db.Column(
+        db.DateTime, default=datetime.now(timezone.utc).fromtimestamp
+    )
     bank_balance = db.Column(db.Float, default=0.0)
 
-    user_deposits = db.relationship("User_deposit", lazy=True, backref="useraccount")
+    user_deposits = db.relationship(
+        "UserDeposit", lazy=True, backref="useraccount", cascade="all, delete-orphan"
+    )
     user_withdrawals = db.relationship(
-        "User_withdraw", lazy=True, backref="useraccount"
+        "UserWithdraw", lazy=True, backref="useraccount", cascade="all, delete-orphan"
     )
     user_id = db.Column(db.Integer, db.ForeignKey("user_login.id"), nullable=False)
     bank_id = db.Column(db.Integer, db.ForeignKey("bank.id"), nullable=False)
 
 
-class User_deposit(db.Model):
+class UserDeposit(db.Model):
     __tablename__ = "user_deposits"
     id = db.Column(db.Integer, primary_key=True)
     deposit_value = db.Column(db.Float, nullable=False)
@@ -106,7 +125,7 @@ class User_deposit(db.Model):
     )
 
 
-class User_withdraw(db.Model):
+class UserWithdraw(db.Model):
     __tablename__ = "user_withdrawals"
     id = db.Column(db.Integer, primary_key=True)
     withdrawal_value = db.Column(db.Float, nullable=False)

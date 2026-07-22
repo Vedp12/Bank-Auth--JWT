@@ -9,11 +9,7 @@ def get_employee(name):
             return jsonify({"error": f"No employee found with name '{name}'"}), 404
 
         # Example: return employee data as JSON
-        return jsonify({
-            "id": emp.id,
-            "name": emp.name,
-            "email": emp.email
-        }), 200
+        return jsonify({"id": emp.id, "name": emp.name, "email": emp.email}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
